@@ -9,7 +9,7 @@ made-for-esphome: true
 difficulty: 1
 ---
 
-<img src="athom-human-presence-sensor-ps01c3.png" alt="alt text" title="Athom Human Presence Sensor - PS01C3" width="500">
+![Athom Human Presence Sensor - PS01C3](athom-human-presence-sensor-ps01c3.png)
 
 Maker: [https://www.athom.tech/](https://www.athom.tech/)
 
@@ -19,7 +19,8 @@ Maker: [https://www.athom.tech/](https://www.athom.tech/)
 
 ## Note
 
-Built-in CH340C serial port chip, connect the Type-C data cable to flash the firmware directly(in box provided Type-C data cable can be used).
+Built-in CH340C serial port chip, connect the Type-C data cable to flash the firmware directly
+(the attached Type-C cable has no data cable, you need to prepare the Type-C data cable to flash the firmware)
 
 ## GPIO Pinout
 
