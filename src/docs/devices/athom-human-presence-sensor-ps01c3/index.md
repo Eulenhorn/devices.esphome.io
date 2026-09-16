@@ -9,7 +9,6 @@ made-for-esphome: true
 difficulty: 1
 ---
 
-<!-- Describe the device here. See the front-matter table on the contributing page for valid options. -->
 <img src="athom-human-presence-sensor-ps01c3.png" alt="alt text" title="Athom Human Presence Sensor - PS01C3" width="500">
 
 Maker: [https://www.athom.tech/](https://www.athom.tech/)
