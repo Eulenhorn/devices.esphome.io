@@ -5,10 +5,12 @@ type: sensor
 standard: global
 board: esp32
 project-url: https://github.com/athom-tech/esp32-configs/blob/main/athom-presence-sensor-v3.yaml
+made-for-esphome: true
+difficulty: 1
 ---
 
 <!-- Describe the device here. See the front-matter table on the contributing page for valid options. -->
-![alt text](Athom-Human-Presence-Sensor.webp "Athom Human Presence Sensor - PS01C3")
+<img src="athom-human-presence-sensor-ps01c3.png" alt="alt text" title="Athom Human Presence Sensor - PS01C3" width="500">
 
 Maker: [https://www.athom.tech/](https://www.athom.tech/)
 
