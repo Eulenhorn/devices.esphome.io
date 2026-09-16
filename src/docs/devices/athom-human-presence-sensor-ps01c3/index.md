@@ -19,8 +19,7 @@ Maker: [https://www.athom.tech/](https://www.athom.tech/)
 
 ## Note
 
-Built-in CH340C serial port chip, connect the Type-C data cable to flash the firmware directly (the attached Type-C
-cable has no data cable, you need to prepare the Type-C data cable to flash the firmware)
+Built-in CH340C serial port chip, connect the Type-C data cable to flash the firmware directly(in box provided Type-C data cable can be used).
 
 ## GPIO Pinout
 
