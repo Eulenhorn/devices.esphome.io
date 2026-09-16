@@ -1,0 +1,563 @@
+---
+title: "Athom Human Presence Sensor (PS01C3)"
+date-published: 2026-09-16
+type: sensor
+standard: global
+board: esp32
+project-url: https://github.com/athom-tech/esp32-configs/blob/main/athom-presence-sensor-v3.yaml
+---
+
+<!-- Describe the device here. See the front-matter table on the contributing page for valid options. -->
+![alt text](Athom-Human-Presence-Sensor.webp "Athom Human Presence Sensor - PS01C3")
+
+Maker: [https://www.athom.tech/](https://www.athom.tech/)
+
+## Available from
+
+[Athom](https://www.athom.tech/blank-1/human-presence-sensor)
+
+## Note
+
+Built-in CH340C serial port chip, connect the Type-C data cable to flash the firmware directly (the attached Type-C
+cable has no data cable, you need to prepare the Type-C data cable to flash the firmware)
+
+## GPIO Pinout
+
+| Pin    | Function     |
+| ------ | ------------ |
+| GPIO2  | LedLink      |
+| GPIO3  | Pir Output   |
+| GPIO4  | Radar Output |
+| GPIO5  | Radar RX     |
+| GPIO8  | Radar TX     |
+| GPIO9  | Button       |
+| GPIO18 | I2C SDA      |
+| GPIO19 | I2C SCL      |
+
+## Basic Configuration
+
+```yaml
+substitutions:
+  # Default name
+  name: "athom-presence-sensor-v3"
+  # Default friendly name
+  friendly_name: "Athom Presence Sensor"
+  # Allows ESP device to be automatically linked to an 'Area' in Home Assistant. Typically used for areas such as 'Lounge Room', 'Kitchen' etc
+  room: ""
+  # Description as appears in ESPHome & top of webserver page
+  device_description: "athom esp32-c3 mmwave radar human presence sensor"
+  # Project Name
+  project_name: "Athom Technology.Athom PS01C3 Presence Sensor"
+  # Projection version denotes the release version of the yaml file, allowing checking of deployed vs latest version
+  project_version: "v4.0.3"
+  # Define a domain for this device to use. i.e. iot.home.lan (so device will appear as athom-smart-plug-v2.iot.home.lan in DNS/DHCP logs)
+  dns_domain: ".local"
+  # Set timezone of the smart plug. Useful if the plug is in a location different to the HA server. Can be entered in unix Country/Area format (i.e. "Australia/Sydney")
+  timezone: ""
+  # Set the duration between the sntp service polling ntp.org servers for an update
+  sntp_update_interval: 6h
+  # Network time servers for your region, enter from lowest to highest priority. To use local servers update as per zones or countries at: https://www.ntppool.org/zone/@
+  sntp_server_1: "0.pool.ntp.org"
+  sntp_server_2: "1.pool.ntp.org"
+  sntp_server_3: "2.pool.ntp.org"
+  # Enables faster network connections, with last connected SSID being connected to and no full scan for SSID being undertaken
+  wifi_fast_connect: "false"
+  # Define logging level: NONE, ERROR, WARN, INFO, DEBUG (Default), VERBOSE, VERY_VERBOSE
+  log_level: "DEBUG"
+  # Enable or disable the use of IPv6 networking on the device
+  ipv6_enable: "false"
+
+esphome:
+  name: "${name}"
+  friendly_name: "${friendly_name}"
+  comment: "${device_description}"
+  area: "${room}"
+  name_add_mac_suffix: true
+  min_version: 2026.8.0
+  project:
+    name: "${project_name}"
+    version: "${project_version}"
+  platformio_options:
+    board_build.flash_mode: dio
+
+esp32:
+  board: esp32-c3-devkitm-1
+  flash_size: 4MB
+  variant: ESP32C3
+  framework:
+    type: esp-idf
+    version: recommended
+    sdkconfig_options:
+      # @grigi found in testing that these options resulted in better responsiveness.
+      # BLE 4.2 is supported by ALL ESP32 boards that have bluetooth, the original and derivatives.
+      CONFIG_BT_BLE_42_FEATURES_SUPPORTED: y
+      # Also enable this on any derivative boards (S2, C3 etc) but not the original ESP32.
+      CONFIG_BT_BLE_50_FEATURES_SUPPORTED: y
+      # Extend the watchdog timeout, so the device reboots if the device appears locked up for over 10 seconds.
+      CONFIG_ESP_TASK_WDT_TIMEOUT_S: "10"
+
+preferences:
+  flash_write_interval: 1min
+
+logger:
+  level: ${log_level}
+  hardware_uart: UART0
+  baud_rate: 115200
+
+api:
+  # reboot_timeout: 0s
+  # Only enable BLE tracking when wifi is up and api is connected
+  # Gives single-core ESP32-C3 devices time to manage wifi and authenticate with api
+  on_client_connected:
+     - esp32_ble_tracker.start_scan:
+        continuous: true
+  # Disable BLE tracking when there are no api connections live
+  on_client_disconnected:
+    if:
+      condition:
+        not:
+          api.connected:
+      then:
+        - esp32_ble_tracker.stop_scan:
+
+ota:
+  - platform: esphome
+    id: ota_esphome
+  # Enables OTA firmware flashing from a URL (used by the update component below)
+  - platform: http_request
+    id: ota_http_request
+
+# Required by the ota http_request platform and the update component.
+# verify_ssl: false skips TLS cert validation to reduce heap/RAM pressure during
+# the download; the manifest's MD5 still verifies firmware integrity before flashing.
+http_request:
+  id: http_request_component
+  verify_ssl: false
+
+update:
+  # Managed updates via HTTP request: periodically checks the published manifest
+  # and exposes a "Firmware Update" entity, pointing at this device's GitHub Pages
+  # manifest. Pages URLs avoid the redirect/buffer issues of Release download URLs.
+  - platform: http_request
+    id: update_http_request
+    name: "Firmware Update"
+    source: https://athom-tech.github.io/esp32-configs/firmware/athom-presence-sensor-v3.manifest.json
+    # update_interval defaults to 6h (how often it checks, not installs)
+
+mdns:
+  disabled: false
+
+web_server:
+  port: 80
+
+network:
+  enable_ipv6: ${ipv6_enable}
+
+wifi:
+  # This spawns an AP with the device name and mac address with no password.
+  ap: {}
+  # Allow rapid re-connection to previously connect WiFi SSID, skipping scan of all SSID
+  fast_connect: "${wifi_fast_connect}"
+  # Define dns domain / suffix to add to hostname
+  domain: "${dns_domain}"
+
+captive_portal:
+
+esp32_improv:
+  authorizer: none
+
+esp32_ble_tracker:
+  scan_parameters:
+    # Don't auto start BLE scanning, we control it in the `api` block's automation.
+    continuous: false
+    active: true  # send scan-request packets to gather more info, like device name for some devices.
+    interval: 320ms  # default 320ms - how long to spend on each advert channel
+    window:   300ms  # default 30ms - how long to actually "listen" in each interval. Reduce this if device is unstable.
+    # If the device cannot keep up or becomes unstable, reduce the "window" setting. This may be
+    # required if your device is controlling other sensors or doing PWM for lights etc.
+
+bluetooth_proxy:
+  active: true
+
+dashboard_import:
+  package_import_url: github://athom-tech/esp32-configs/athom-presence-sensor-v3.yaml
+
+light:
+  - platform: status_led
+    name: "Status LED"
+    id: led
+    pin: GPIO2
+    disabled_by_default: true
+    entity_category: config
+
+i2c:
+  sda: GPIO18
+  scl: GPIO19
+  scan: true
+
+uart:
+  tx_pin: GPIO8
+  rx_pin: GPIO5
+  baud_rate: 115200
+  # debug:
+  #   direction: BOTH
+  #   dummy_receiver: true
+  #   after:
+  #     delimiter: "\n"
+  #   sequence:
+  #     - lambda: UARTDebug::log_string(direction, bytes);
+
+binary_sensor:
+  - platform: status
+    name: "Status"
+    entity_category: diagnostic
+
+  - platform: gpio
+    pin:
+      number: GPIO9
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Button"
+    disabled_by_default: true
+    id: reset_button
+    filters:
+      - delayed_on_off: 20ms
+    on_multi_click:
+      - timing:
+          - ON for at least 4s
+        then:
+          - button.press: factory_reset_device
+
+  - platform: gpio
+    pin:
+      number: GPIO3
+      mode:
+        input: true
+        pullup: true
+    name: "Pir Sensor"
+    id: pir
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 10s
+    device_class: motion
+    on_press:
+      if:
+        condition:
+          switch.is_on: presence_light
+        then:
+          - light.turn_on: led
+
+  - platform: gpio
+    pin:
+      number: GPIO4
+      mode:
+        input: true
+        pullup: true
+    name: "mmWave Sensor"
+    id: mmwave
+    filters:
+      - delayed_on: 50ms
+    device_class: motion
+    on_release:
+      then:
+        - light.turn_off: led
+
+  - platform: template
+    name: "Occupancy"
+    id: occupancy
+    device_class: occupancy
+    lambda: |-
+      if ( id(mmwave).state and id(pir).state) {
+        return true;
+      }
+      else if (id(mmwave).state == 0) {
+        return false;
+      }
+      else {
+        return id(occupancy).state;
+      }
+
+sensor:
+  - platform: uptime
+    name: "Uptime Sensor"
+    id: uptime_sensor
+    type:
+      timestamp
+    entity_category: "diagnostic"
+
+  - platform: wifi_signal
+    name: "WiFi Signal dB"
+    id: wifi_signal_db
+    update_interval: 60s
+    entity_category: "diagnostic"
+
+  - platform: copy
+    source_id: wifi_signal_db
+    name: "WiFi Signal Percent"
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+    unit_of_measurement: "Signal %"
+    entity_category: "diagnostic"
+    device_class: ""
+
+  - platform: bh1750
+    name: "Light Sensor"
+    id: "light_sensor"
+    address: 0x23
+    update_interval: 5s
+
+switch:
+  - platform: template
+    name: "mmWave Status"
+    id: "mmwave_sensor"
+    internal: true
+    entity_category: config
+    optimistic: true
+    restore_mode: DISABLED
+    turn_on_action:
+      - uart.write: "sensorStart\r\n"
+    turn_off_action:
+      - uart.write: "sensorStop\r\n"
+
+  - platform: template
+    name: Presence Light
+    id: presence_light
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    on_turn_on:
+      if:
+        condition:
+          binary_sensor.is_on: occupancy
+        then:
+          - light.turn_on: led
+    on_turn_off:
+      - light.turn_off: led
+
+number:
+  - platform: template
+    name: Farthest Detection          #Value range: 1.9 ~ 12m  Default: 6
+    id: Farthest_Detection
+    entity_category: config
+    min_value: 1.9
+    max_value: 12
+    initial_value: 6
+    optimistic: true
+    step: 0.1
+    restore_value: true
+    unit_of_measurement: m
+    mode: slider
+    set_action:
+      - switch.turn_off: mmwave_sensor
+      - delay: 500ms
+      - uart.write: !lambda
+          std::string ranges = "setRange 1.8 " + str_sprintf("%.1f",id(Farthest_Detection).state) + "\r\n";
+          return std::vector<uint8_t>(ranges.begin(), ranges.end());
+      - delay: 500ms
+      - uart.write: "saveConfig\r\n"
+      - delay: 500ms
+      - switch.turn_on: mmwave_sensor
+
+  - platform: template
+    name: Maintain Sensitivity                 #Value range: 0 ~ 9   Default Maintain sensitivity: 7    Default Trigger sensitivity: 5
+    id: Maintain_Sensitivity
+    entity_category: config
+    min_value: 0
+    max_value: 9
+    initial_value: 7
+    optimistic: true
+    step: 1
+    restore_value: true
+    mode: slider
+    set_action:
+      - switch.turn_off: mmwave_sensor
+      - delay: 500ms
+      - uart.write: !lambda
+          std::string sensitivitys = "setSensitivity " + str_sprintf("%.0f",id(Maintain_Sensitivity).state) + " " + str_sprintf("%.0f",id(Trigger_Sensitivity).state) + "\r\n";
+          return std::vector<uint8_t>(sensitivitys.begin(), sensitivitys.end());
+      - delay: 500ms
+      - uart.write: "saveConfig\r\n"
+      - delay: 500ms
+      - switch.turn_on: mmwave_sensor
+
+
+  - platform: template
+    name: Trigger Sensitivity     #Value range: 0 ~ 9   Default Maintain sensitivity: 7    Default Trigger sensitivity: 5
+    id: Trigger_Sensitivity
+    entity_category: config
+    min_value: 0
+    max_value: 9
+    initial_value: 5
+    optimistic: true
+    step: 1
+    restore_value: true
+    mode: slider
+    set_action:
+      - switch.turn_off: mmwave_sensor
+      - delay: 500ms
+      - uart.write: !lambda
+          std::string sensitivityss = "setSensitivity " + str_sprintf("%.0f",id(Maintain_Sensitivity).state) + " " + str_sprintf("%.0f",id(Trigger_Sensitivity).state) + "\r\n";
+          return std::vector<uint8_t>(sensitivityss.begin(), sensitivityss.end());
+      - delay: 500ms
+      - uart.write: "saveConfig\r\n"
+      - delay: 500ms
+      - switch.turn_on: mmwave_sensor
+
+  - platform: template
+    name: Detection Delay      #Confirmation delay      Value range: 0 ～ 100  default 0.050 seconds.
+    id: Detection_Delay
+    entity_category: config
+    min_value: 0.1
+    max_value: 60
+    initial_value: 0.1
+    optimistic: true
+    step: 0.1
+    restore_value: true
+    unit_of_measurement: seconds
+    mode: slider
+    set_action:
+      - switch.turn_off: mmwave_sensor
+      - delay: 500ms
+      - uart.write: !lambda |-
+          std::string detections = "setLatency " + str_sprintf("%.1f",id(Detection_Delay).state) + " " + str_sprintf("%.0f",id(Fading_Time).state) + "\r\n";
+          return std::vector<uint8_t>(detections.begin(),detections.end());
+      - delay: 500ms
+      - uart.write: "saveConfig\r\n"
+      - delay: 500ms
+      - switch.turn_on: mmwave_sensor
+
+  - platform: template
+    name: Fading Time           #Fade-out delay        Value range: 0.5 ～ 1500, default 15 seconds.
+    id: Fading_Time
+    entity_category: config
+    min_value: 1
+    max_value: 300
+    initial_value: 15
+    optimistic: true
+    step: 1
+    restore_value: true
+    unit_of_measurement: seconds
+    mode: auto
+    set_action:
+      - switch.turn_off: mmwave_sensor
+      - delay: 500ms
+      - uart.write: !lambda |-
+          std::string fadings = "setLatency " + str_sprintf("%.1f",id(Detection_Delay).state) + " " + str_sprintf("%.0f",id(Fading_Time).state) + "\r\n";
+          return std::vector<uint8_t>(fadings.begin(), fadings.end());
+      - delay: 500ms
+      - uart.write: "saveConfig\r\n"
+      - delay: 500ms
+      - switch.turn_on: mmwave_sensor
+
+  - platform: template
+    name: Blockade Time                  #Configure block time        Value range: 1 ～ 255, default 1 seconds.
+    id: Blockade_Time
+    entity_category: config
+    min_value: 1
+    max_value: 255
+    initial_value: 1
+    optimistic: true
+    step: 1
+    restore_value: true
+    unit_of_measurement: seconds
+    mode: slider
+    set_action:
+      - switch.turn_off: mmwave_sensor
+      - delay: 500ms
+      - uart.write: !lambda
+          std::string blockades = "setInhibit " + str_sprintf("%.0f",x) + "\r\n";
+          return std::vector<uint8_t>(blockades.begin(), blockades.end());
+      - delay: 500ms
+      - uart.write: "saveConfig\r\n"
+      - delay: 500ms
+      - switch.turn_on: mmwave_sensor
+
+button:
+  - platform: factory_reset
+    name: Restart with Factory Default Settings
+    id: Reset
+    entity_category: config
+    internal: true
+  - platform: template
+    name: "Reset device"
+    id: "factory_reset_device"
+    entity_category: config
+    on_press:
+      - switch.turn_off: mmwave_sensor
+      - delay: 500ms
+      - uart.write: "resetCfg\r\n"
+      - delay: 1s
+      - switch.turn_on: mmwave_sensor
+      - button.press: Reset
+
+  - platform: restart
+    name: Restart_esp
+    id: restart_esp
+    entity_category: config
+    internal: true
+
+  - platform: safe_mode
+    name: "Safe Mode"
+    internal: false
+    entity_category: config
+
+  - platform: template
+    name: "Restart_mmWave"
+    id: "restart_mmwave"
+    entity_category: config
+    internal: true
+    on_press:
+      - uart.write: "resetSystem\r\n"
+
+  - platform: template
+    name: Restart device
+    entity_category: config
+    on_press:
+      - button.press: restart_mmwave
+      - delay: 1s
+      - button.press: restart_esp
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+      entity_category: diagnostic
+    ssid:
+      name: "Connected SSID"
+      entity_category: diagnostic
+    mac_address:
+      name: "Mac Address"
+      entity_category: diagnostic
+
+  #  Creates a sensor showing when the device was last restarted
+  - platform: template
+    name: 'Last Restart'
+    id: device_last_restart
+    icon: mdi:clock
+    entity_category: diagnostic
+#    device_class: timestamp
+
+time:
+  - platform: sntp
+    id: sntp_time
+  # Define the timezone of the device
+    timezone: "${timezone}"
+  # Change sync interval from default 5min to 6 hours (or as set in substitutions)
+    update_interval: ${sntp_update_interval}
+  # Set specific sntp servers to use
+    servers:
+      - "${sntp_server_1}"
+      - "${sntp_server_2}"
+      - "${sntp_server_3}"
+  # Publish the time the device was last restarted
+    on_time_sync:
+      then:
+        # Update last restart time, but only once.
+        - if:
+            condition:
+              lambda: 'return id(device_last_restart).state == "";'
+            then:
+              - text_sensor.template.publish:
+                  id: device_last_restart
+                  state: !lambda 'return id(sntp_time).now().strftime("%a %d %b %Y - %I:%M:%S %p");'
+```
