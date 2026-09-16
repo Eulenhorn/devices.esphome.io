@@ -12,11 +12,6 @@ difficulty: 1
 
 Maker: [https://www.athom.tech/](https://www.athom.tech/)
 
-## Available from
-
-[Athom](https://www.athom.tech/blank-1/human-presence-sensor)
-[Aliexpress](https://www.aliexpress.com/item/3256805586518763.html)
-
 ## Note
 
 Built-in CH340C serial port chip, connect the Type-C data cable to flash the firmware directly (the attached Type-C
